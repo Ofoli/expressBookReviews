@@ -1,7 +1,9 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
 const session = require("express-session");
-const customer_routes = require("./router/auth_users.js").authenticated;
+const {
+  authenticated: customer_routes,
+  Token,
+} = require("./router/auth_users.js");
 const genl_routes = require("./router/general.js").general;
 
 const app = express();
@@ -17,10 +19,19 @@ app.use(
   })
 );
 
-app.use("/customer/auth/*", function auth(req, res, next) {
-  const authUser = req.session;
-  if (!authUser) return res.status(401).json({ status: false });
-  return next();
+app.use("/customer/auth/*", async (req, res, next) => {
+  const token = req.session.token;
+  if (!token) return res.status(401).json({ status: false });
+
+  try {
+    const user = await Token.verify(token);
+    req.user = user;
+    return next();
+  } catch (err) {
+    return res
+      .status(400)
+      .json({ status: false, message: "Invalid or Expired token" });
+  }
 });
 
 const PORT = 5000;
